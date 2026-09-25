@@ -1,0 +1,150 @@
+/*
+ * Two application flash layout for the nRF9151DK
+ *
+ * MCUboot image pair 0 = app0 (primary slot0, secondary slot1)
+ * MCUboot image pair 1 = app1 (primary slot2, secondary slot3)
+ * MCUboot image pair 2 = MCUboot s0/s1 self-update
+ *
+ *   0x0000_0000  b0 (NSIB)                     ( 32 kB)
+ *   0x0000_8000  s0: MCUboot slot A            ( 64 kB)
+ *   0x0001_8000  s1: MCUboot slot B            ( 64 kB)
+ *   0x0002_8000  app0 primary                  (416 kB)
+ *     0x0002_8000  TF-M (secure)               ( 32 kB)
+ *     0x0003_0000  app0 (non-secure)           (384 kB)
+ *   0x0009_0000  app1 primary                  (416 kB)
+ *     0x0009_0000  TF-M (secure)               ( 32 kB)
+ *     0x0009_8000  app1 (non-secure)           (384 kB)
+ *   0x000f_8000  free                          ( 32 kB)
+ *
+ *   ext 0x0000_0000  app0 secondary (slot1)    (416 kB)
+ *   ext 0x0006_8000  app1 secondary (slot3)    (416 kB)
+ *
+ * TF-M and imgtool resolve slot0_* from the image's own devicetree, so app1
+ * includes this file with APP1_VIEW defined: same layout but the slot0_*
+ * labels sit on app1's slot and slot2_* on app0's. The secondary labels
+ * (slot1/slot3) are MCUboot global in both views, so fota_download with
+ * img_num N always writes slot<2N+1>.
+ */
+
+#ifdef APP1_VIEW
+#define APP0_SLOT    slot2_partition
+#define APP0_SLOT_S  slot2_s_partition
+#define APP0_SLOT_NS slot2_ns_partition
+#define APP1_SLOT    slot0_partition
+#define APP1_SLOT_S  slot0_s_partition
+#define APP1_SLOT_NS slot0_ns_partition
+#else
+#define APP0_SLOT    slot0_partition
+#define APP0_SLOT_S  slot0_s_partition
+#define APP0_SLOT_NS slot0_ns_partition
+#define APP1_SLOT    slot2_partition
+#define APP1_SLOT_S  slot2_s_partition
+#define APP1_SLOT_NS slot2_ns_partition
+#endif
+
+/delete-node/ &boot_partition;
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &tfm_ps_partition;
+/delete-node/ &tfm_its_partition;
+/delete-node/ &tfm_otp_partition;
+/delete-node/ &storage_partition;
+
+&flash0 {
+	partitions {
+		b0_partition: partition@0 {
+			compatible = "zephyr,mapped-partition";
+			label = "b0";
+			reg = <0x00000000 0x8000>;
+		};
+
+		s0_partition: partition@8000 {
+			compatible = "zephyr,mapped-partition";
+			label = "mcuboot-0";
+			reg = <0x00008000 0x10000>;
+		};
+
+		s1_partition: partition@18000 {
+			compatible = "zephyr,mapped-partition";
+			label = "mcuboot-1";
+			reg = <0x00018000 0x10000>;
+		};
+
+		APP0_SLOT: partition@28000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x00028000 0x68000>;
+			ranges = <0x0 0x00028000 0x68000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			APP0_SLOT_S: partition@0 {
+				compatible = "zephyr,mapped-partition";
+				label = "image-0-secure";
+				reg = <0x00000000 0x8000>;
+			};
+
+			APP0_SLOT_NS: partition@8000 {
+				compatible = "zephyr,mapped-partition";
+				label = "image-0-nonsecure";
+				reg = <0x00008000 0x60000>;
+			};
+		};
+
+		APP1_SLOT: partition@90000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-2";
+			reg = <0x00090000 0x68000>;
+			ranges = <0x0 0x00090000 0x68000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			APP1_SLOT_S: partition@0 {
+				compatible = "zephyr,mapped-partition";
+				label = "image-2-secure";
+				reg = <0x00000000 0x8000>;
+			};
+
+			APP1_SLOT_NS: partition@8000 {
+				compatible = "zephyr,mapped-partition";
+				label = "image-2-nonsecure";
+				reg = <0x00008000 0x60000>;
+			};
+		};
+	};
+};
+
+&gd25wb256 {
+	status = "okay";
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		slot1_partition: partition@0 {
+			label = "image-1";
+			reg = <0x00000000 0x68000>;
+		};
+
+		slot3_partition: partition@68000 {
+			label = "image-3";
+			reg = <0x00068000 0x68000>;
+		};
+	};
+};
+
+/ {
+	/delete-node/ nordic-tz-secure;
+	/delete-node/ nordic-tz-nonsecure;
+
+	nordic-tz-secure {
+		compatible = "nordic,tz-secure";
+		code-partitions = <&slot0_s_partition>, <&slot2_s_partition>;
+	};
+
+	nordic-tz-nonsecure {
+		compatible = "nordic,tz-nonsecure";
+		code-partitions = <&slot0_ns_partition>, <&slot2_ns_partition>;
+	};
+};

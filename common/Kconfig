@@ -1,0 +1,17 @@
+config UPDATE_HOST
+	string "Update server host"
+	default "http://example.com:80"
+	help
+	  Host serving the images, with optional scheme and port
+
+config UPDATE_FILE_APP0
+	string "app0 resource path on the server"
+	default "app0.signed.bin"
+
+config UPDATE_FILE_APP1
+	string "app1 resource path on the server"
+	default "app1.signed.bin"
+
+config UPDATE_SEC_TAG
+	int "Modem sec tag of the server's CA (-1 for plain HTTP)"
+	default -1

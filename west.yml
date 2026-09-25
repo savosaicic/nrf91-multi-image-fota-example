@@ -1,0 +1,14 @@
+manifest:
+  remotes:
+    - name: savosaicic
+      url-base: https://github.com/savosaicic
+
+  projects:
+    - name: nrf
+      repo-path: sdk-nrf
+      remote: savosaicic
+      revision: c24ab47cc679d7ebbf858c0a5f1238c8fe9de8c6
+      import: true
+
+  self:
+    path: nrf-two-app
